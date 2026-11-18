@@ -6,6 +6,8 @@ namespace JustinHoltWeb\VelvetRope;
 
 use CraftCms\Cms\Cms;
 use CraftCms\Cms\User\Elements\User;
+use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use JustinHoltWeb\VelvetRope\Membership\Access;
 use JustinHoltWeb\VelvetRope\Models\Member;
 use JustinHoltWeb\VelvetRope\Models\Subscription;
@@ -91,7 +93,13 @@ class VelvetRope
      */
     public function requireMembership(string|array $plans = [], ?string $redirect = null): void
     {
-        $plans = array_values(array_filter((array) $plans, 'is_string'));
+        $plans = self::planList($plans);
+
+        foreach ($plans as $plan) {
+            if ($this->plans->get($plan) === null) {
+                Log::warning("Velvet Rope: requireMembership names unknown plan “{$plan}”; nobody can pass it.");
+            }
+        }
 
         if ($this->subscribed(...$plans)) {
             return;
@@ -109,6 +117,28 @@ class VelvetRope
         }
 
         redirect($target)->throwResponse();
+    }
+
+    /**
+     * Normalises the plans a gate asks for, failing closed. Only a truly empty
+     * argument means "any plan"; a list containing anything but non-empty strings
+     * (an unset Twig variable, ids instead of handles) is a template bug, and
+     * silently dropping those values would widen the gate to every member.
+     *
+     * @param  string|array<array-key, mixed>  $plans
+     * @return list<string>
+     */
+    public static function planList(string|array $plans): array
+    {
+        $list = is_string($plans) ? [$plans] : array_values($plans);
+
+        foreach ($list as $plan) {
+            if (! is_string($plan) || trim($plan) === '') {
+                throw new InvalidArgumentException('requireMembership expects plan handles (non-empty strings); got '.get_debug_type($plan).'.');
+            }
+        }
+
+        return array_map(trim(...), $list);
     }
 
     /** @return list<string> Handles of the plans currently granting the user access. */

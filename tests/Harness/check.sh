@@ -93,6 +93,7 @@ ok "member sees GOLD-YES + status" "$(marks vr/blade | grep -oE 'gold=GOLD-YES s
 ok "twig-gated: member gets the page" "$(curl -sk -b "$J" "$U/vr/twig-gated" | grep -c TWIG-SECRET)" "1"
 ok "blade-gated: member gets the page" "$(curl -sk -b "$J" "$U/vr/blade-gated" | grep -c BLADE-SECRET)" "1"
 ok "route-gated: member gets the page" "$(curl -sk -b "$J" "$U/vr/route-gated")" "ROUTE-SECRET"
+ok "a gate fed an unset variable fails closed for a member (500, not the page)" "$(curl -sk -b "$J" -o /dev/null -w '%{http_code}' "$U/vr/twig-badgate")" "500"
 setadmin past_due "now()->subDays(10)"
 ok "lapsed grace: Twig and Blade both say GOLD-NO" "$(marks vr/twig | grep -o 'gold=GOLD-[A-Z]*')$(marks vr/blade | grep -o 'gold=GOLD-[A-Z]*')" "gold=GOLD-NOgold=GOLD-NO"
 setadmin canceled null
