@@ -15,6 +15,8 @@ use CraftCms\Cms\Ui\Ui;
 use CraftCms\Cms\Ui\UiContext;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Event;
+use Illuminate\View\Compilers\BladeCompiler;
 use JustinHoltWeb\VelvetRope\Http\Middleware\RequireWebhookSecret;
 use JustinHoltWeb\VelvetRope\Models\Member;
 use JustinHoltWeb\VelvetRope\Models\Subscription;
@@ -59,6 +61,11 @@ class Plugin extends BasePlugin
     public function boot(): void
     {
         $this->app->bind(Settings::class, fn (): Settings => $this->getSettings());
+        $this->app->scoped(VelvetRope::class);
+        $this->app->singleton(Listeners\CancelOnUserDelete::class);
+        Event::subscribe(Listeners\CancelOnUserDelete::class);
+        Event::subscribe(Listeners\RegisterTemplateApi::class);
+        $this->registerBlade();
         $settings = $this->getSettings();
 
         config([
@@ -75,11 +82,24 @@ class Plugin extends BasePlugin
         // Cashier registered its webhook route before plugins load; guard it.
         /** @var Router $router */
         $router = $this->app->make('router');
+        $router->aliasMiddleware('member', Http\Middleware\RequireMembership::class);
         foreach ($router->getRoutes()->getRoutes() as $route) {
             if ($route->getName() === 'cashier.webhook') {
                 $route->middleware(RequireWebhookSecret::class);
             }
         }
+    }
+
+    /**
+     * Blade mirrors of the Twig API (both call VelvetRope, so they can't drift):
+     * `@subscribed('gold') … @else … @endsubscribed` and `@requireMembership('gold')`.
+     */
+    private function registerBlade(): void
+    {
+        $this->callAfterResolving('blade.compiler', function (BladeCompiler $blade): void {
+            $blade->if('subscribed', fn (string ...$plans): bool => app(VelvetRope::class)->subscribed(...$plans));
+            $blade->directive('requireMembership', fn (string $expression): string => '<?php app(\\'.VelvetRope::class.'::class)->requireMembership('.($expression !== '' ? $expression : '[]').'); ?>');
+        });
     }
 
     #[Override]
@@ -124,6 +144,8 @@ class Plugin extends BasePlugin
                 ->instructions(t('Members of a plan are put in its user group while their subscription is paid up, and taken out when it isn’t.', category: 'velvetrope')),
             Field::make(t('Grace period (days)', category: 'velvetrope'), Number::make('graceDays')->min(0)->max(60))
                 ->instructions(t('How long a member keeps access after a failed payment.', category: 'velvetrope')),
+            Field::make(t('Join path', category: 'velvetrope'), Text::make('joinPath')->placeholder('join'))
+                ->instructions(t('Where non-members are sent when a page requires membership (e.g. your plans page).', category: 'velvetrope')),
             Field::make(t('Success path', category: 'velvetrope'), Text::make('successPath')->placeholder('members/welcome'))
                 ->instructions(t('Site path Stripe returns to after checkout.', category: 'velvetrope')),
             Field::make(t('Cancel path', category: 'velvetrope'), Text::make('cancelPath')->placeholder('join'))

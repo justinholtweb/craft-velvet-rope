@@ -34,8 +34,13 @@ untouched. Cashier's `subscriptions`/`subscription_items` tables are installed b
 - Not yet verified against real Stripe test mode (needs your test keys): Checkout session creation, the
   success redirect, the billing portal, and real webhook payloads incl. `cancel_at_period_end` (Cashier
   calls the API for that one).
-- Open: when a Craft user is deleted their member row cascades away, but the Stripe subscription keeps
-  billing — cancel it on user delete. Guest checkout. Twig helpers (phase 2).
+- **2026-11-17 — phase 2 done.** One template API (`VelvetRope` service) behind three front doors: Twig
+  (`velvetRope` global + `{% requireMembership %}` tag), Blade (`$velvetRope` global, `@subscribed`,
+  `@requireMembership`) and route middleware (`member:gold`). Globals come from Craft's
+  `TemplateGlobalsResolving`, which feeds both engines. Deleting a user (soft or hard) queues
+  `CancelStripeSubscriptions` — IDs captured on `ElementDeleting`, dispatched on `ElementDeleted` (after
+  commit), so a vetoed delete cancels nothing. 23 Pest + 46 harness checks (incl. a local Stripe mock).
+- Open: guest checkout (create the Craft user from Checkout), CP members index (phase 3).
 
 ## Phases
 1. **Plans → groups (Lite).** Plans in the CP (Stripe price IDs, name, user group, trial days). Stripe Checkout

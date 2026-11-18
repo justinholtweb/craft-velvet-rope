@@ -1,0 +1,2 @@
+@requireMembership('gold')
+BLADE-SECRET

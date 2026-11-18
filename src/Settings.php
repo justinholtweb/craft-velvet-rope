@@ -37,6 +37,9 @@ class Settings extends PluginSettings
      */
     public ?array $plans = [];
 
+    /** Where non-members are sent by requireMembership (site path, e.g. a plans page). */
+    public ?string $joinPath = '';
+
     /** Where Stripe Checkout returns on success (site path). */
     public ?string $successPath = '';
 
@@ -57,6 +60,7 @@ class Settings extends PluginSettings
             'plans.*.trialDays' => ['nullable', 'integer', 'min:0', 'max:730'],
             'successPath' => ['nullable', 'string', 'max:255', 'not_regex:#^[a-z][a-z0-9+.-]*:#i'],
             'cancelPath' => ['nullable', 'string', 'max:255', 'not_regex:#^[a-z][a-z0-9+.-]*:#i'],
+            'joinPath' => ['nullable', 'string', 'max:255', 'not_regex:#^[a-z][a-z0-9+.-]*:#i'],
         ];
     }
 
