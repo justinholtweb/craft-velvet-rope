@@ -2,7 +2,7 @@
 
 Paid memberships for Craft users through Laravel Cashier — plans map to user groups, Stripe handles the money.
 
-> **Status:** scaffold — nothing user-facing yet. See [PLAN.md](PLAN.md).
+> **Status:** phase 1 (plans → user groups via Stripe webhooks) working in the Craft 6 harness. Requires Craft Pro. See [PLAN.md](PLAN.md).
 
 ## Requirements
 
