@@ -41,6 +41,15 @@ class Install extends Migration
             $table->timestamp('ends_at')->nullable();
             // Velvet Rope: when Stripe first reported the subscription past_due (drives the grace period).
             $table->timestamp('past_due_since')->nullable();
+            // Velvet Rope: the price as Stripe last reported it (drives MRR in the CP).
+            $table->integer('amount')->nullable(); // smallest currency unit, per interval, before discounts
+            $table->string('currency', 3)->nullable();
+            $table->string('interval', 8)->nullable(); // day, week, month, year
+            $table->smallInteger('interval_count')->nullable();
+            $table->decimal('discount_percent', 5, 2)->nullable();
+            $table->integer('discount_amount')->nullable(); // per interval, same currency
+            // Velvet Rope Pro dunning: 0 none, 1 payment failed, 2 grace ending, 3 access ended.
+            $table->tinyInteger('dunning_stage')->default(0);
             $table->timestamps();
             $table->index(['member_id', 'stripe_status']);
         });
@@ -57,10 +66,58 @@ class Install extends Migration
             $table->timestamps();
             $table->index(['subscription_id', 'stripe_price']);
         });
+
+        // Access that isn't a Stripe subscription: redeemed gifts and complimentary grants (Pro).
+        Schema::create('velvetrope_grants', function (Blueprint $table) {
+            $table->id();
+            $table->integer('userId');
+            $table->foreign('userId')->references('id')->on(Table::USERS)->cascadeOnDelete();
+            $table->string('plan', 64);
+            $table->string('source', 16); // gift, comp
+            $table->unsignedBigInteger('giftId')->nullable();
+            $table->timestamp('startsAt');
+            $table->timestamp('endsAt');
+            $table->string('note')->nullable();
+            $table->integer('createdById')->nullable();
+            $table->timestamps();
+            $table->index(['userId', 'plan', 'endsAt']);
+        });
+
+        // Gift memberships bought through Stripe Checkout (Pro). Only a hash of the code is kept.
+        Schema::create('velvetrope_gifts', function (Blueprint $table) {
+            $table->id();
+            $table->char('codeHash', 64)->unique();
+            $table->string('option', 64);
+            $table->string('plan', 64);
+            $table->smallInteger('months');
+            $table->string('buyerEmail');
+            $table->string('stripeSessionId')->unique();
+            $table->string('siteHandle', 64)->nullable();
+            $table->integer('redeemedByUserId')->nullable();
+            $table->timestamp('redeemedAt')->nullable();
+            $table->timestamps();
+        });
+
+        // Checkouts started by people who weren't logged in, and what became of each.
+        Schema::create('velvetrope_guest_checkouts', function (Blueprint $table) {
+            $table->id();
+            $table->string('stripeSessionId')->unique();
+            $table->string('email');
+            $table->string('plan', 64);
+            $table->string('stripeCustomerId')->nullable();
+            $table->string('stripeSubscriptionId')->nullable();
+            $table->integer('userId')->nullable();
+            $table->string('outcome', 16); // created, attached, review
+            $table->string('reason')->nullable();
+            $table->timestamps();
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('velvetrope_guest_checkouts');
+        Schema::dropIfExists('velvetrope_gifts');
+        Schema::dropIfExists('velvetrope_grants');
         Schema::dropIfExists('velvetrope_subscription_items');
         Schema::dropIfExists('velvetrope_subscriptions');
         Schema::dropIfExists('velvetrope_members');

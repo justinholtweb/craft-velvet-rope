@@ -17,6 +17,11 @@ final readonly class Plan
         public int $trialDays = 0,
     ) {}
 
+    public function withName(string $name): self
+    {
+        return new self($this->handle, $name, $this->priceId, $this->userGroupUid, $this->trialDays);
+    }
+
     /**
      * @param  array<string, mixed>  $row
      */

@@ -6,6 +6,7 @@ namespace JustinHoltWeb\VelvetRope\Models;
 
 use CraftCms\Cms\User\Elements\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Laravel\Cashier\Billable;
 
 /**
@@ -15,6 +16,7 @@ use Laravel\Cashier\Billable;
  * @property int $id
  * @property int $userId
  * @property string|null $stripe_id
+ * @property Carbon|null $created_at
  */
 class Member extends Model
 {

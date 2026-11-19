@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace JustinHoltWeb\VelvetRope\Plans;
 
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use JustinHoltWeb\VelvetRope\Settings;
 
 /**
@@ -30,6 +32,50 @@ class Plans
     public function get(string $handle): ?Plan
     {
         return $this->all()[$handle] ?? null;
+    }
+
+    /**
+     * Pro: gift options whose plan exists, keyed by handle.
+     *
+     * @return array<string, GiftOption>
+     */
+    public function giftOptions(): array
+    {
+        $options = [];
+
+        foreach ($this->settings->giftOptions ?? [] as $row) {
+            if (is_array($row) && ($option = GiftOption::fromRow($row)) !== null && $this->get($option->plan) !== null) {
+                $options[$option->handle] ??= $option;
+            }
+        }
+
+        return $options;
+    }
+
+    public function giftOption(string $handle): ?GiftOption
+    {
+        return $this->giftOptions()[$handle] ?? null;
+    }
+
+    /**
+     * Pro: plan gates, in the order they were entered (the first match wins).
+     *
+     * @return list<Gate>
+     */
+    public function gates(): array
+    {
+        $gates = [];
+
+        foreach ($this->settings->gates ?? [] as $row) {
+            if (is_array($row) && ($gate = Gate::fromRow($row)) !== null) {
+                $gates[] = $gate;
+            } elseif (Cache::add('velvetrope:bad-gate', true, 3600)) {
+                // Nothing can be gated by a row that can't be read; say so loudly.
+                Log::warning('Velvet Rope: a plan gate row is incomplete or invalid and is being ignored: '.json_encode($row));
+            }
+        }
+
+        return $gates;
     }
 
     /**

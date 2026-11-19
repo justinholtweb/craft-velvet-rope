@@ -8,22 +8,28 @@ use CraftCms\Cms\User\UserGroups;
 use CraftCms\Cms\User\Users;
 use Illuminate\Support\Facades\Log;
 use JustinHoltWeb\VelvetRope\Models\Member;
-use JustinHoltWeb\VelvetRope\Models\Subscription;
 use JustinHoltWeb\VelvetRope\Plans\Plans;
-use JustinHoltWeb\VelvetRope\Settings;
 
 /**
- * Puts a member's Craft user in exactly the groups their subscriptions pay for,
+ * Puts a member's Craft user in exactly the groups their subscriptions and grants pay for,
  * leaving groups Velvet Rope doesn't manage alone.
  */
 class GroupSync
 {
     public function __construct(
         private readonly Plans $plans,
-        private readonly Settings $settings,
+        private readonly Memberships $memberships,
         private readonly UserGroups $userGroups,
         private readonly Users $users,
     ) {}
+
+    /**
+     * @return array{before: list<int>, after: list<int>}
+     */
+    public function syncUser(int $userId): array
+    {
+        return $this->sync(Member::forUser($userId));
+    }
 
     /**
      * @return array{before: list<int>, after: list<int>}
@@ -38,16 +44,9 @@ class GroupSync
             }
         }
 
-        /** @var Subscription $subscription */
-        foreach ($member->subscriptions()->get() as $subscription) {
-            $plan = $this->plans->forSubscription($subscription->type, $subscription->stripe_price);
-
-            if ($plan === null || ! isset($managed[$plan->handle])) {
-                continue;
-            }
-
-            if (Access::grants($subscription->stripe_status, $subscription->ends_at, $subscription->trial_ends_at, $subscription->past_due_since, $this->settings->graceDays)) {
-                $granted[] = $managed[$plan->handle];
+        foreach ($this->memberships->grantedPlans($member->userId) as $handle) {
+            if (isset($managed[$handle])) {
+                $granted[] = $managed[$handle];
             }
         }
 
