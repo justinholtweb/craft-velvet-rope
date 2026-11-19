@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<!-- handmade: hand-tuned deck -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Velvet Rope — Plugin Store promos</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --charcoal: #0f0f1a;
+    --charcoal-light: #1a1a2e;
+    --charcoal-lighter: #252540;
+    --accent: #C6595B;
+    --accent-light: #F0A3A4;
+    --gold: #f5b041;
+    --off-white: #f0f0f5;
+  }
+
+  html { background: #000; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--off-white);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- slide shell ---------------------------------------------------- */
+  .slide {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 85% 15%, rgba(198, 89, 91, 0.34) 0%, transparent 40%),
+      radial-gradient(ellipse at 65% 5%,  rgba(240, 163, 164, 0.14) 0%, transparent 35%),
+      radial-gradient(ellipse at 15% 85%, rgba(245, 176, 65, 0.07) 0%, transparent 40%),
+      radial-gradient(ellipse at 35% 95%, rgba(198, 89, 91, 0.14) 0%, transparent 35%),
+      linear-gradient(135deg, #0f0f1a 0%, #1a0f12 30%, #21121a 60%, #0f0f1a 100%);
+  }
+
+  /* Oversized watermark: the mark with the tile stripped, because a rounded square at this
+     size reads as a grey box across the slide rather than as the icon. Anchored bottom-right and
+     running off the right and bottom edges. It is the stanchions' outline (stroked icon-mask paths), not the filled
+     mark: filled, it reads as a grey blob across the slide. */
+  .slide::after {
+    content: '';
+    position: absolute;
+    top: 22%;
+    right: -22%;
+    width: 1400px;
+    height: 1400px;
+    background: url('assets/watermark.svg') no-repeat center / contain;
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
+  /* The cover has the icon itself; a watermark behind it reads as its shadow. */
+  .cover::after { display: none; }
+
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light), var(--gold), var(--accent));
+    z-index: 5;
+  }
+
+  .inner {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    padding: 118px 130px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ---- type ------------------------------------------------------------ */
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(240, 240, 245, 0.62);
+    margin-bottom: 34px;
+  }
+  .eyebrow .rule {
+    width: 58px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--accent-light);
+  }
+
+  h1, h2 {
+    font-family: 'Jersey 20', sans-serif;
+    font-weight: 400;
+    line-height: 0.9;
+    letter-spacing: 0.005em;
+  }
+
+  .gradient-text {
+    background: linear-gradient(100deg, #D96C6E 0%, #F0A3A4 40%, #FBD9D6 68%, #D96C6E 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .lede {
+    font-size: 34px;
+    line-height: 1.5;
+    color: rgba(240, 240, 245, 0.72);
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  /* ---- cover ----------------------------------------------------------- */
+  .cover .inner { gap: 90px; }
+  .cover .copy { flex: 1 1 auto; }
+  .cover h1 { font-size: 168px; margin-bottom: 26px; }
+  .cover .tagline {
+    font-size: 46px;
+    line-height: 1.25;
+    color: rgba(240, 240, 245, 0.78);
+    margin-bottom: 46px;
+    max-width: 900px;
+  }
+  .cover .badges { display: flex; gap: 18px; align-items: center; }
+  .badge {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 14px 26px;
+    border-radius: 999px;
+    border: 2px solid rgba(240, 163, 164, 0.45);
+    color: rgba(240, 240, 245, 0.85);
+  }
+  .badge.free { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cover .mark { flex: 0 0 auto; }
+  .cover .mark img { width: 420px; height: 420px; display: block; }
+
+  /* ---- feature slides -------------------------------------------------- */
+  .feature .inner { padding-right: 0; }
+  .feature .copy { width: 760px; flex: 0 0 auto; }
+  .feature h2 { font-size: 96px; margin-bottom: 30px; }
+  .feature .lede { max-width: 700px; }
+
+  .points { list-style: none; margin-top: 40px; display: flex; flex-direction: column; gap: 20px; }
+  .points li {
+    display: flex;
+    gap: 16px;
+    font-size: 25px;
+    line-height: 1.4;
+    color: rgba(240, 240, 245, 0.6);
+  }
+  .points li svg { flex: 0 0 auto; margin-top: 4px; }
+
+  /* ---- screenshot slabs ------------------------------------------------ */
+  .shot {
+    position: absolute;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .shot .chrome {
+    height: 40px;
+    background: #2a2a3e;
+    background-image:
+      radial-gradient(circle at 24px 20px, #ff5f57 6px, transparent 6.5px),
+      radial-gradient(circle at 48px 20px, #ffbd2e 6px, transparent 6.5px),
+      radial-gradient(circle at 72px 20px, #28ca42 6px, transparent 6.5px);
+  }
+  .shot .viewport { overflow: hidden; background: #e4edf6; position: relative; }
+  .shot img { display: block; width: 100%; position: absolute; left: 0; }
+
+  .caption {
+    font-size: 22px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(240, 240, 245, 0.5);
+    margin-bottom: 14px;
+  }
+  .caption b { color: var(--accent-light); font-weight: 600; }
+
+  /* ---- before / after -------------------------------------------------- */
+  .compare .inner { flex-direction: column; align-items: flex-start; padding-bottom: 60px; }
+  .compare h2 { font-size: 88px; margin-bottom: 18px; }
+  .compare .lede { font-size: 30px; max-width: 1280px; margin-bottom: 44px; }
+  .compare .pair { display: flex; gap: 56px; width: 100%; }
+  .compare .pane { flex: 1 1 0; min-width: 0; }
+  .compare .shot { position: relative; }
+
+  .arrow {
+    position: absolute;
+    left: 50%;
+    top: 640px;
+    transform: translateX(-50%);
+    z-index: 4;
+    width: 92px;
+    height: 92px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 12px 40px rgba(198, 89, 91, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ---- closing panel --------------------------------------------------- */
+  .closing .inner { flex-direction: column; align-items: flex-start; justify-content: center; }
+  .closing h2 { font-size: 104px; margin-bottom: 34px; }
+  .closing .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 26px 54px;
+    margin-top: 20px;
+    width: 1420px;
+  }
+  .closing .cell {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(37, 37, 64, 0.42);
+    padding: 28px 32px;
+  }
+  .closing .cell b { display: block; font-size: 28px; margin-bottom: 8px; color: var(--off-white); }
+  .closing .cell span { font-size: 23px; line-height: 1.45; color: rgba(240, 240, 245, 0.58); }
+
+  /* ---- layout diagram slide -------------------------------------------- */
+  .diagram {
+    position: absolute;
+    right: 130px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 800px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(15, 15, 26, 0.72);
+    padding: 44px 48px;
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 26px;
+    line-height: 1.65;
+    color: rgba(240, 240, 245, 0.72);
+    white-space: pre;
+  }
+  .diagram .tab { color: var(--off-white); font-weight: 600; }
+  .diagram .marker { color: var(--accent-light); }
+  .diagram .dim { color: rgba(240, 240, 245, 0.38); }
+  .diagram .gold { color: var(--gold); }
+
+  /* ---- footer lockup --------------------------------------------------- */
+  .footer {
+    position: absolute;
+    left: 130px;
+    bottom: 54px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 22px;
+    color: rgba(240, 240, 245, 0.42);
+  }
+  .footer img { width: 40px; height: 40px; border-radius: 9px; }
+  .footer b { color: rgba(240, 240, 245, 0.72); font-weight: 600; }
+
+  /* Only render the requested slide when screenshotting */
+  body.single .slide { display: none; }
+  body.single .slide.active { display: block; }
+
+  
+  .ck { flex: 0 0 auto; margin-top: 4px; }
+  .badge.beta { border-color: rgba(245, 176, 65, 0.7); color: #f8d48a; background: rgba(245, 176, 65, 0.10); }
+  .caution {
+    position: absolute; left: 130px; right: 130px; top: 40px; z-index: 4;
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 24px; border-radius: 12px;
+    background: rgba(245, 176, 65, 0.10); border: 1px solid rgba(245, 176, 65, 0.42);
+    font-size: 23px; color: #f8d48a;
+  }
+  .panel {
+    position: absolute; right: 120px; top: 50%; transform: translateY(-50%);
+    width: 960px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(15, 15, 26, 0.78); padding: 38px 44px;
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 22px; line-height: 1.75; color: rgba(240,240,245,0.70); white-space: pre;
+  }
+  .panel .c { color: rgba(240,240,245,0.38); }
+  .panel .k { color: var(--accent-light); }
+  .panel .s { color: #9fe0b8; }
+  .panel .h { color: rgba(240,240,245,0.42); font-size: 17px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .panel .bad { color: #ff8b8b; }
+  .panel .warn { color: #f8d48a; }
+  .panel .ok { color: #5ee0a0; }
+  .states { position: absolute; right: 120px; top: 50%; transform: translateY(-50%); width: 900px; display: flex; flex-direction: column; gap: 18px; }
+  .state { display: flex; align-items: center; justify-content: space-between; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09); background: rgba(15,15,26,0.72); padding: 22px 32px; font-size: 26px; }
+  .state b { color: var(--off-white); font-weight: 600; }
+  .state span { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 22px; }
+  .state.in span { color: #5ee0a0; }
+  .state.out span { color: rgba(240,240,245,0.42); }
+  .where .inner { flex-direction: column; align-items: flex-start; justify-content: center; }
+  .where h2 { font-size: 96px; margin-bottom: 26px; }
+  .where .lede { max-width: 1300px; font-size: 31px; margin-bottom: 50px; }
+  .where .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; width: 1660px; }
+  .where .card { border-radius: 14px; padding: 34px 36px; }
+  .where .card b { display: flex; align-items: center; gap: 14px; font-size: 32px; margin-bottom: 12px; color: var(--off-white); }
+  .where .card span { display: block; font-size: 23px; line-height: 1.5; color: rgba(240,240,245,0.6); }
+  .where .card.new { border-color: var(--accent-light); }
+  .where .card .tag { font-size: 16px; font-weight: 700; font-style: normal; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; border-radius: 999px; padding: 6px 14px; margin-left: auto; }
+  .where .alone { margin-top: 38px; font-size: 24px; color: rgba(240,240,245,0.45); }
+  .where .alone b { color: rgba(240,240,245,0.7); font-weight: 600; }
+  .where .card { border: 1px solid; border-color: rgba(192,132,212,0.32); background: rgba(87,34,97,0.20); }
+  .where .card .tag { background: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- 1 · Cover ============================================================ -->
+<section class="slide cover" data-n="1">
+  <div class="caution"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f5b041" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg> Craft 6 is still in beta, and so is Velvet Rope (6.0.0-beta.1). It takes payments: use caution on production sites.</div>
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Craft CMS 6 · Beta</div>
+      <h1 class="gradient-text">Velvet Rope</h1>
+      <p class="tagline">Stripe memberships for Craft 6 —<br>paid members in, everyone else out.</p>
+      <div class="badges">
+        <span class="badge">Lite &amp; Pro</span>
+        <span class="badge">Laravel Cashier</span>
+        <span class="badge beta">Craft 6 beta</span>
+      </div>
+    </div>
+    <div class="mark"><img src="assets/icon.svg" alt=""></div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Velvet Rope</b> &nbsp;·&nbsp; Craft CMS 6 (beta) &nbsp;·&nbsp; justinholt.com/plugins/craft-velvetrope</div>
+</section>
+
+<!-- 2 · Gate a page ====================================================== -->
+<section class="slide feature" data-n="2">
+  <div class="inner">
+    <div class="copy" style="width: 640px;">
+      <div class="eyebrow"><span class="rule"></span> Twig, Blade, routes</div>
+      <h2>Gate a page<br>in one line</h2>
+      <p class="lede" style="max-width: 600px;">One API for both of Craft 6's template engines.</p>
+      <ul class="points"><li><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> <span class="t">Guests to log in, non-members to join</span></li><li><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> <span class="t">Gates fail closed on bad input</span></li></ul>
+    </div>
+  </div>
+  <div class="panel"><span class="c">{# Twig #}</span>
+{% <span class="k">requireMembership</span> <span class="s">'gold'</span> %}
+{% if <span class="k">velvetRope.subscribed</span>(<span class="s">'gold'</span>) %}Welcome back{% endif %}
+&lt;a href="{{ <span class="k">velvetRope.checkoutUrl</span>(<span class="s">'gold'</span>) }}"&gt;Join&lt;/a&gt;
+
+<span class="c">{{-- Blade --}}</span>
+@<span class="k">requireMembership</span>(<span class="s">'gold'</span>)
+@<span class="k">subscribed</span>(<span class="s">'gold'</span>) Welcome back @endsubscribed
+
+<span class="c">// Laravel routes</span>
+->middleware([<span class="s">'craft'</span>, <span class="s">'craft.web'</span>, <span class="s">'member:gold'</span>])</div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Velvet Rope</b> &nbsp;·&nbsp; Craft CMS 6 (beta) &nbsp;·&nbsp; justinholt.com/plugins/craft-velvetrope</div>
+</section>
+
+<!-- 3 · Stripe status → groups =========================================== -->
+<section class="slide feature" data-n="3">
+  <div class="inner">
+    <div class="copy" style="width: 640px;">
+      <div class="eyebrow"><span class="rule"></span> Plans are user groups</div>
+      <h2>Paid up?<br>You're in.</h2>
+      <p class="lede" style="max-width: 600px;">Stripe's webhooks move people in and out of your groups.</p>
+      <ul class="points"><li><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> <span class="t">A grace period for failed renewals</span></li><li><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> <span class="t">Unsigned webhooks refused, always</span></li></ul>
+    </div>
+  </div>
+  <div class="states">
+    <div class="state in"><b>Active</b><span>in the group</span></div>
+    <div class="state in"><b>On a trial</b><span>in the group</span></div>
+    <div class="state in"><b>Cancelled, paid to period end</b><span>in until then</span></div>
+    <div class="state in"><b>Renewal failed (past due)</b><span>in for the grace period</span></div>
+    <div class="state out"><b>Grace period over</b><span>shown out</span></div>
+    <div class="state out"><b>Cancelled, ended, unpaid</b><span>shown out</span></div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Velvet Rope</b> &nbsp;·&nbsp; Craft CMS 6 (beta) &nbsp;·&nbsp; justinholt.com/plugins/craft-velvetrope</div>
+</section>
+
+<!-- 4 · Members and MRR ================================================== -->
+<section class="slide feature" data-n="4">
+  <div class="inner">
+    <div class="copy" style="width: 640px;">
+      <div class="eyebrow"><span class="rule"></span> Control panel</div>
+      <h2>Members<br>and MRR</h2>
+      <p class="lede" style="max-width: 600px;">Who's in, on which plan, and what it's worth a month.</p>
+      <ul class="points"><li><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> <span class="t">Trials and gifts kept out of MRR</span></li><li><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> <span class="t">A Membership tab on every user</span></li></ul>
+    </div>
+  </div>
+  <div class="panel"><span class="h">Members  412     MRR  $6,180.00     On trial  23     Past due  4</span>
+
+<span class="h">Member            Plans                       MRR</span>
+Ada Lovelace      <span class="ok">Gold · Active</span>               $15.00
+Grace Hopper      <span class="k">Silver · Trialing</span>           —
+Marie Curie       <span class="warn">Gold · Past due</span>             $15.00
+Alan Turing       <span class="k">Gold · Gift</span>                 —
+Linus Pauling     <span class="bad">Silver · Cancelled</span>          —</div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Velvet Rope</b> &nbsp;·&nbsp; Craft CMS 6 (beta) &nbsp;·&nbsp; justinholt.com/plugins/craft-velvetrope</div>
+</section>
+
+<!-- 5 · Guest checkout =================================================== -->
+<section class="slide where" data-n="5">
+  <div class="inner">
+    <div class="eyebrow"><span class="rule"></span> Guest checkout</div>
+    <h2>Pay first,<br>account second — safely</h2>
+    <p class="lede">Visitors can join before they have an account. Paying never signs anyone in.</p>
+    <div class="cards"><div class="card"><b><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> New email</b><span>A pending account is created and sent Craft’s activation email; only that inbox can switch it on.</span></div><div class="card"><b><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Existing account</b><span>The membership is added to the account with that email. It can only ever give access.</span></div><div class="card"><b><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Conflicts held</b><span>An account that’s already another Stripe customer gets nothing attached until you look.</span></div></div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Velvet Rope</b> &nbsp;·&nbsp; Craft CMS 6 (beta) &nbsp;·&nbsp; justinholt.com/plugins/craft-velvetrope</div>
+</section>
+
+<!-- 6 · Pro ============================================================== -->
+<section class="slide where" data-n="6">
+  <div class="inner">
+    <div class="eyebrow"><span class="rule"></span> Pro</div>
+    <h2>Gifts, promos, dunning<br>and plan gates</h2>
+    <p class="lede">Everything a membership business asks for in month two.</p>
+    <div class="cards"><div class="card new"><b><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Gift memberships <em class="tag">Pro</em></b><span>One-time payments issue a code, stored only as a hash; redeem for N months.</span></div><div class="card new"><b><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Promotion codes <em class="tag">Pro</em></b><span>Stripe’s code box, or links that carry a code: ?promo=SPRING.</span></div><div class="card new"><b><svg class="ck" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0A3A4" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Dunning + gates <em class="tag">Pro</em></b><span>Emails when a card fails; whole sections or URIs gated by plan, sent private.</span></div></div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Velvet Rope</b> &nbsp;·&nbsp; Craft CMS 6 (beta) &nbsp;·&nbsp; justinholt.com/plugins/craft-velvetrope</div>
+</section>
+
+<!-- 7 · Closing ========================================================== -->
+<section class="slide closing" data-n="7">
+  <div class="caution"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f5b041" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg> A Craft 6 plugin on a beta CMS that takes payments. Test in Stripe test mode, keep backups, and use caution on production.</div>
+  <div class="inner">
+    <div class="eyebrow"><span class="rule"></span> Lite &amp; Pro</div>
+    <h2>Memberships without Commerce</h2>
+    <div class="grid">
+      <div class="cell"><b>Stripe does the billing</b><span>Checkout, renewals, the billing portal and invoices — Velvet Rope never sees a card.</span></div>
+      <div class="cell"><b>Craft decides who's in</b><span>Plans map to user groups; gates in Twig, Blade and routes.</span></div>
+      <div class="cell"><b>Members and MRR</b><span>In the control panel, plus GraphQL for headless pricing pages.</span></div>
+      <div class="cell"><b>Pro when you grow</b><span>Several plans at once, gifts, promo codes, dunning, plan gates.</span></div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Velvet Rope</b> &nbsp;·&nbsp; Craft CMS 6 (beta) &nbsp;·&nbsp; justinholt.com/plugins/craft-velvetrope</div>
+</section>
+
+<script>
+  var n = new URLSearchParams(location.search).get('s');
+  if (n) {
+    document.body.classList.add('single');
+    var el = document.querySelector('.slide[data-n="' + n + '"]');
+    if (el) el.classList.add('active');
+  }
+</script>
+</body>
+</html>
