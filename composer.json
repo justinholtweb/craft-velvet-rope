@@ -60,6 +60,7 @@
         "sort-packages": true
     },
     "support": {
+        "docs": "https://justinholt.com/plugins/craft-velvetrope/docs",
         "issues": "https://github.com/justinholtweb/craft-velvet-rope/issues",
         "source": "https://github.com/justinholtweb/craft-velvet-rope"
     },
@@ -68,7 +69,7 @@
         "handle": "velvetrope",
         "developer": "Justin Holt",
         "developerUrl": "https://justinholt.com",
-        "documentationUrl": "https://github.com/justinholtweb/craft-velvet-rope",
+        "documentationUrl": "https://justinholt.com/plugins/craft-velvetrope/docs",
         "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-velvet-rope/main/CHANGELOG.md",
         "class": "JustinHoltWeb\\VelvetRope\\Plugin"
     }
