@@ -58,7 +58,7 @@ class Plans
     }
 
     /**
-     * Pro: plan gates, in the order they were entered (the first match wins).
+     * Pro: plan gates, in the order they were entered. Every matching gate applies.
      *
      * @return list<Gate>
      */

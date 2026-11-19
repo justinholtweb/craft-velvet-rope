@@ -46,9 +46,18 @@ final readonly class Gate
         return new self($type, $match, $plans);
     }
 
-    /** Whether a site-relative path is covered (`*` matches anything, including slashes). */
+    /**
+     * Whether a site-relative path is covered (`*` matches anything, including slashes).
+     * Case-insensitive, like Craft's own element URI routing: `/Members/x` is `members/x`.
+     */
     public function matchesUri(string $path): bool
     {
-        return $this->type === self::URI && Str::is($this->match, trim($path, '/'));
+        return $this->type === self::URI && Str::is(mb_strtolower($this->match), mb_strtolower(trim($path, '/')));
+    }
+
+    /** Whether this is a section gate for the given section handle. */
+    public function matchesSection(?string $handle): bool
+    {
+        return $this->type === self::SECTION && $handle !== null && $this->match === $handle;
     }
 }

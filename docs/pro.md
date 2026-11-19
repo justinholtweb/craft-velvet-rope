@@ -58,9 +58,9 @@ Bouncer-style rules for front-end pages, in **Plan gates**:
 | Gate | Matches |
 | --- | --- |
 | Entries in section | Pages for entries of that section (by handle), on every site. |
-| URI pattern | Site paths; `*` matches anything, so `members/*` covers everything under `/members/`. |
+| URI pattern | Site paths, ignoring case; `*` matches anything, so `members/*` covers everything under `/members/`. Checked against the requested path and against the matched entry's own URI. |
 
-with the plans that may pass (blank: any plan). The first matching gate wins. Non-members get the same
+with the plans that may pass (blank: any plan). **Every** gate that matches a page applies, and the visitor must pass all of them — so a broad URI gate can't open up an entry whose section gate is stricter. Non-members get the same
 treatment as `{% requireMembership %}`: guests to log in, members of other plans to your join page (or the
 plan's checkout, or a 403). Pages a gate lets through are sent `Cache-Control: private, no-store`, so a
 CDN never hands them to the next visitor. A gate naming a plan that doesn't exist lets nobody in.

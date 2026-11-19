@@ -58,7 +58,7 @@ untouched. Cashier's `subscriptions`/`subscription_items` tables are installed b
     middleware inserted before `HandleTemplateRequest`; let-through pages get `private, no-store`.
   - GraphQL `velvetRopePlans` (public plan fields only). Multisite: return URLs, Stripe locale, guest affiliation,
     gift email links per site. Rate limiter for checkout/gift links (setting).
-  - Checks: 51 Pest; harness `check.sh` 177 checks (incl. the velvetropefr multisite section) against a local Stripe mock and Mailpit (see README).
+  - Checks: 51 Pest; harness `check.sh` 181 checks (incl. the velvetropefr multisite section) against a local Stripe mock and Mailpit (see README).
 - **Deferred:** Paddle driver (laravel/cashier-paddle is a separate Billable/models/webhooks stack — a
   driver abstraction is a project of its own, not cheap); metered prices (no Craft-side meaning yet).
 - **Unverified without a real Stripe account** (mocked locally): real Checkout/portal sessions, real webhook

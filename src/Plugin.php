@@ -304,7 +304,7 @@ class Plugin extends BasePlugin
                     ])
                     ->allowAdd()->allowDelete()->allowReorder()
                     ->addRowLabel(t('Add a gate', category: 'velvetrope')))
-                    ->instructions(t('Front-end pages only members of these plans may see; everyone else is sent to log in or to your join page. The first matching gate wins. Gates protect pages, not data: content shown elsewhere (another template, GraphQL) is not covered.', category: 'velvetrope')),
+                    ->instructions(t('Front-end pages only members of these plans may see; everyone else is sent to log in or to your join page. Every matching gate applies (URI patterns ignore case), and visitors must pass all of them. Gates protect pages, not data: content shown elsewhere (another template, GraphQL) is not covered.', category: 'velvetrope')),
             ] : []),
         ]);
     }

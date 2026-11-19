@@ -53,7 +53,13 @@ o={"id":sid,"object":"subscription","customer":cus,"status":status,"metadata":{"
    "items":{"data":[{"id":"si_"+sid,"quantity":1,"price":{"id":price,"product":"prod_harness","unit_amount":int(amount),"currency":"usd","recurring":{"interval":"month","interval_count":1,"usage_type":"licensed"}}}]}}
 o.update(json.loads(extra or "{}")); print(json.dumps(o))' "$1" "${2:-}" "${3:-price_harness_gold}" "${4:-cus_harness_1}" "${5:-sub_harness_1}" "${6:-1500}" "${7-gold}"; }
 send() { sendevent "$1" "$(subobj "${@:2}")"; }
-calls() { cat "$MOCK/calls.log" 2>/dev/null; }
+# The mock runs in the web container; DDEV's file sync makes host reads/writes of its files lag, so
+# read the log, clear it and write subscription fixtures from inside the container.
+WEB=ddev-plugin-testing-craft6-web
+CMOCK=/var/www/html/storage/stripe-mock
+calls() { docker exec $WEB cat $CMOCK/calls.log 2>/dev/null; }
+clearcalls() { docker exec $WEB rm -f $CMOCK/calls.log; }
+mockfix() { docker exec -i $WEB sh -c "cat > $CMOCK/fixtures/$1.json"; }
 redirect() { curl -sk -b "${2:-/dev/null}" -o /dev/null -w '%{redirect_url}' "$U/$1"; }
 code() { curl -sk -b "${2:-/dev/null}" -o /dev/null -w '%{http_code}' "$U/$1"; }
 marks() { curl -sk -b "${2:-$J}" "$U/$1" | grep -o '<p id="[a-z]*">[^<]*' | sed -E 's/<p id="([a-z]*)"> */\1=/; s/ +$//' | tr '\n' '|'; }
@@ -75,7 +81,7 @@ print(eval(sys.argv[1]))' "$3"; }
 mkdir -p "$H/resources/views/vr" "$MOCK/fixtures"
 cp "$HERE"/templates/* "$H/resources/views/vr/"
 cp "$HERE/stripe-mock-router.php" "$MOCK/router.php"
-rm -f "$MOCK/calls.log" "$MOCK"/fixtures/*.json
+docker exec $WEB sh -c "mkdir -p $CMOCK/fixtures && rm -f $CMOCK/calls.log $CMOCK/fixtures/*.json"
 grep -q '^VELVETROPE_STRIPE_API_BASE=http://127.0.0.1:12111' .env || { echo "harness .env lacks VELVETROPE_STRIPE_API_BASE (see README)"; exit 2; }
 ddev exec "curl -s -o /dev/null 127.0.0.1:12111/v1/ping || (setsid nohup php -S 127.0.0.1:12111 storage/stripe-mock/router.php >/tmp/stripe-mock.out 2>&1 < /dev/null &); sleep 1" >/dev/null 2>&1
 ok "setup: leftovers from earlier runs removed" "$(req cleanup.php)" "cleaned"
@@ -131,7 +137,7 @@ ok "a Stripe API error → 502, not 500" "$(code actions/velvetrope/checkout/bro
 settings "['checkoutRateLimit' => 2]"
 ok "checkout links are rate-limited per visitor (3rd in a minute → 429)" "$(code actions/velvetrope/checkout/broken "$J")/$(code actions/velvetrope/checkout/broken "$J")/$(code actions/velvetrope/checkout/broken "$J")" "502/502/429"
 settings "['checkoutRateLimit' => 0]"
-rm -f "$MOCK/calls.log"
+clearcalls
 ok "checkout → Stripe Checkout's hosted page" "$(redirect actions/velvetrope/checkout/silver "$J" | grep -c '^https://checkout.stripe.test/c/pay/cs_mock_')" "1"
 ok "session: subscription for the plan's price, typed with the plan handle" "$(calls | grep 'POST /v1/checkout/sessions' | grep -c 'line_items\[0\]\[price\]=price_harness_silver.*subscription_data\[metadata\]\[type\]=silver\|subscription_data\[metadata\]\[type\]=silver.*price_harness_silver')" "1"
 ok "session: the plan's 14-day trial" "$(calls | grep 'checkout/sessions' | grep -oE 'subscription_data\[trial_end\]=[0-9]+' | cut -d= -f2 | python3 -I -c 'import sys,time; print(round((int(sys.stdin.read() or 0)-time.time())/86400))')" "14"
@@ -168,7 +174,7 @@ ok "lapsed grace: Twig and Blade both say GOLD-NO" "$(mark vr/twig gold)$(mark v
 setadmin canceled null
 
 section "Phase 2: deleting a user cancels their Stripe billing (Stripe mock)"
-rm -f "$MOCK/calls.log"
+clearcalls
 out=$(ddev artisan tinker --execute "require '$FX/delete-users.php';" 2>/dev/null | grep -v WARNING)
 ok "a cancel job is queued per deleted user (soft + hard)" "$(echo "$out" | grep -c '^job user')" "2"
 ok "soft-deleted user's subscription cancelled at Stripe" "$(calls | grep -c 'DELETE /v1/subscriptions/sub_soft_1 ')" "1"
@@ -209,21 +215,21 @@ ok "view-only can't resync (403)" "$(cppost "$V" "velvetrope/members/$M1/resync"
 ok "resync without a CSRF token refused" "$(curl -sk -b "$J" -o /dev/null -w '%{http_code}' -X POST "$U/admin/velvetrope/members/$M1/resync")" "419"
 ok "admin resync → back to the Membership screen" "$(cppost "$J" "velvetrope/members/$M1/resync")" "302"
 ok "Lite: granting access is Pro (404)" "$(cppost "$J" "velvetrope/members/$M1/grants" --data 'plan=gold&months=1')" "404"
-subobj active '' price_harness_gold cus_harness_1 sub_harness_1 1500 gold > "$MOCK/fixtures/sub_harness_1.json"
-subobj trialing '{"trial_end": '$(( $(date +%s) + 86400 * 7 ))'}' price_harness_silver cus_harness_1 sub_harness_silver 900 silver > "$MOCK/fixtures/sub_harness_silver.json"
-ok "MRR refresh from Stripe (--refresh) records the mock's price" "$(python3 -I -c 'import json; print(json.dumps({"id":"sub_harness_admin","object":"subscription","customer":"cus_harness_admin","status":"active","metadata":{"type":"gold"},"items":{"data":[{"id":"si_a","quantity":2,"price":{"id":"price_harness_gold","product":"p","unit_amount":12000,"currency":"usd","recurring":{"interval":"year","interval_count":1}}}]},"discount":{"coupon":{"percent_off":50,"duration":"forever"}}}))' > "$MOCK/fixtures/sub_harness_admin.json"; ddev artisan craft:velvetrope:sync --refresh 2>/dev/null | grep -o 'Refreshed [0-9]* subscriptions' | head -1)" "Refreshed 3 subscriptions"
+subobj active '' price_harness_gold cus_harness_1 sub_harness_1 1500 gold | mockfix sub_harness_1
+subobj trialing '{"trial_end": '$(( $(date +%s) + 86400 * 7 ))'}' price_harness_silver cus_harness_1 sub_harness_silver 900 silver | mockfix sub_harness_silver
+ok "MRR refresh from Stripe (--refresh) records the mock's price" "$(python3 -I -c 'import json; print(json.dumps({"id":"sub_harness_admin","object":"subscription","customer":"cus_harness_admin","status":"active","metadata":{"type":"gold"},"items":{"data":[{"id":"si_a","quantity":2,"price":{"id":"price_harness_gold","product":"p","unit_amount":12000,"currency":"usd","recurring":{"interval":"year","interval_count":1}}}]},"discount":{"coupon":{"percent_off":50,"duration":"forever"}}}))' | mockfix sub_harness_admin; ddev artisan craft:velvetrope:sync --refresh 2>/dev/null | grep -o 'Refreshed [0-9]* subscriptions' | head -1)" "Refreshed 3 subscriptions"
 ok "…yearly × 2 seats at 50% off → \$10.00/month for admin, total \$25.00" "$(cpstrings velvetrope "$J" | grep -o 'velvetrope-mrr" style="[^"]*">[^<]*' | sed 's/.*>//')" "\$25.00"
 
 section "Guest checkout (create the Craft user from the Checkout session)"
 NEWMAIL=velvetrope-guest-$(date +%s)@velvetrope.test
 ok "guest checkout off → guests are sent to log in" "$(redirect actions/velvetrope/checkout/gold)" "$U/login"
 settings "['guestCheckout' => true]"
-rm -f "$MOCK/calls.log"
+clearcalls
 ok "guest checkout on → Stripe Checkout, no login" "$(redirect actions/velvetrope/checkout/gold | grep -c '^https://checkout.stripe.test/')" "1"
 ok "guest session is marked for Velvet Rope with the plan and site" "$(calls | grep 'checkout/sessions' | grep -o 'metadata\[velvetrope\]=guest\|metadata\[plan\]=gold\|metadata\[site\]=default\|mode=subscription' | sort | tr '\n' ' ')" "metadata[plan]=gold metadata[site]=default metadata[velvetrope]=guest mode=subscription "
 ok "…and no Stripe customer was created up front" "$(calls | grep -c 'POST /v1/customers')" "0"
 gsession() { python3 -I -c 'import json,sys; print(json.dumps({"id":sys.argv[1],"object":"checkout.session","mode":"subscription","status":"complete","payment_status":sys.argv[5],"customer":sys.argv[2],"subscription":sys.argv[3],"customer_details":{"email":sys.argv[4],"name":"Guest Person"},"metadata":{"velvetrope":"guest","plan":"gold","site":sys.argv[6]}}))' "$@"; }
-subobj active '' price_harness_gold cus_guest_1 sub_guest_1 1500 gold > "$MOCK/fixtures/sub_guest_1.json"
+subobj active '' price_harness_gold cus_guest_1 sub_guest_1 1500 gold | mockfix sub_guest_1
 ok "subscription.created before the customer is known → ignored by Cashier" "$(send customer.subscription.created active '' price_harness_gold cus_guest_1 sub_guest_1)" "200"
 ok "checkout completed, payment still pending → nothing yet" "$(sendevent checkout.session.completed "$(gsession cs_guest_1 cus_guest_1 sub_guest_1 "$NEWMAIL" unpaid default)")/$(tk "echo $UE::find()->email('$NEWMAIL')->status(null)->count();")" "200/0"
 ok "checkout.session.async_payment_succeeded → handled" "$(sendevent checkout.session.async_payment_succeeded "$(gsession cs_guest_1 cus_guest_1 sub_guest_1 "$NEWMAIL" paid default)")" "200"
@@ -235,7 +241,7 @@ queue
 ok "…and sent Craft's activation email" "$(subjects "$NEWMAIL" | grep -ci 'activ')" "1"
 ok "a retried webhook creates nothing twice" "$(sendevent checkout.session.completed "$(gsession cs_guest_1 cus_guest_1 sub_guest_1 "$NEWMAIL" paid default)")/$(tk "echo $UE::find()->email('$NEWMAIL')->status(null)->count().' '.$VR\\Models\\GuestCheckout::count();")" "200/1 1"
 ok "the pending guest can't log in with any password" "$("$HERE/login.sh" "$NEWMAIL" velvetrope-local-only 2>&1 | grep -c 'login failed')" "1"
-subobj active '' price_harness_gold cus_guest_m2 sub_guest_m2 1500 gold > "$MOCK/fixtures/sub_guest_m2.json"
+subobj active '' price_harness_gold cus_guest_m2 sub_guest_m2 1500 gold | mockfix sub_guest_m2
 ok "email of an existing account → membership attached to it (no new user)" "$(sendevent checkout.session.completed "$(gsession cs_guest_2 cus_guest_m2 sub_guest_m2 velvetrope-member2@velvetrope.test paid default)")/$(tk "echo $VR\\Models\\GuestCheckout::where('stripeSessionId','cs_guest_2')->value('outcome');")/$(groups velvetrope-member2 username)" "200/attached/velvetropeGold"
 ok "existing account that is already another Stripe customer → held for review, nothing attached" "$(sendevent checkout.session.completed "$(gsession cs_guest_3 cus_guest_other sub_guest_other velvetrope-member1@velvetrope.test paid default)")/$(tk "echo $VR\\Models\\GuestCheckout::where('stripeSessionId','cs_guest_3')->value('outcome').' '.$VR\\Models\\Member::where('userId',$M1)->value('stripe_id');")" "200/review cus_harness_1"
 ok "review shows on the index and the member's screen" "$(cpstrings velvetrope "$J" | grep -c 'need.* review')/$(cpstrings "users/$M1/membership" "$J" | grep -c 'cus_guest_other')" "1/1"
@@ -245,21 +251,21 @@ settings "['guestCheckout' => false]"
 
 section "Pro: concurrent plans, promotion codes"
 edition pro
-rm -f "$MOCK/calls.log"
+clearcalls
 ok "Pro: a member can check out a second plan" "$(redirect actions/velvetrope/checkout/silver "$J" | grep -c '^https://checkout.stripe.test/')" "1"
 ok "Pro: no promo box unless switched on" "$(calls | grep -c 'allow_promotion_codes')" "0"
 settings "['allowPromotionCodes' => true]"
-rm -f "$MOCK/calls.log"
+clearcalls
 redirect actions/velvetrope/checkout/silver "$J" >/dev/null
 ok "Pro: promo box on Checkout" "$(calls | grep 'checkout/sessions' | grep -c 'allow_promotion_codes=true')" "1"
-rm -f "$MOCK/calls.log"
+clearcalls
 redirect 'actions/velvetrope/checkout/silver?promo=SPRING' "$J" >/dev/null
 ok "Pro: ?promo=SPRING looked up and applied (and no second promo box)" "$(calls | grep -c 'GET /v1/promotion_codes?code=SPRING')/$(calls | grep 'checkout/sessions' | grep -c 'discounts\[0\]\[promotion_code\]=promo_harness_spring')/$(calls | grep 'checkout/sessions' | grep -c allow_promotion_codes)" "1/1/0"
-rm -f "$MOCK/calls.log"
+clearcalls
 NOPE=$(redirect 'actions/velvetrope/checkout/silver?promo=NOPE' "$J")
 ok "Pro: an unknown promo code falls back to the promo box" "$(calls | grep 'checkout/sessions' | grep -c 'allow_promotion_codes=true')" "1" || true
 [ "$(calls | grep 'checkout/sessions' | grep -c 'allow_promotion_codes=true')" = 1 ] || { echo "   redirect: $NOPE"; calls | cut -c1-200 | sed 's/^/   /'; }
-rm -f "$MOCK/calls.log"
+clearcalls
 redirect 'actions/velvetrope/checkout/silver?promo=%3Cscript%3E' "$J" >/dev/null
 ok "Pro: a malformed promo code is never sent to Stripe" "$(calls | grep -c 'GET /v1/promotion_codes')" "0"
 ok "promo checkout link (both engines)" "$(mark vr/twig promo)|$(mark vr/blade promo)" "$U/actions/velvetrope/checkout/gold?promo=SPRING|$U/actions/velvetrope/checkout/gold?promo=SPRING"
@@ -292,7 +298,7 @@ reset1
 section "Pro: gift memberships"
 mailclear
 ok "gift options and links (both engines)" "$(mark vr/twig gifts)|$(mark vr/blade gifts)|$(mark vr/twig gifturl)" "gold-year:12|gold-year:12|$U/actions/velvetrope/gift/gold-year"
-rm -f "$MOCK/calls.log"
+clearcalls
 ok "buy a gift (logged out) → Stripe Checkout" "$(redirect actions/velvetrope/gift/gold-year | grep -c '^https://checkout.stripe.test/')" "1"
 ok "gift session: one-time payment of the gift price, marked as a gift" "$(calls | grep 'checkout/sessions' | grep -o 'mode=payment\|line_items\[0\]\[price\]=price_harness_gift_gold\|metadata\[velvetrope\]=gift\|metadata\[months\]=12' | sort | tr '\n' ' ')" "line_items[0][price]=price_harness_gift_gold metadata[months]=12 metadata[velvetrope]=gift mode=payment "
 ok "unknown gift option → 404" "$(code actions/velvetrope/gift/platinum)" "404"
@@ -340,6 +346,17 @@ setadmin active null silver
 nostore() { curl -sk -b "$J" -D - -o /dev/null "$U/$1" | grep -i '^cache-control:' | grep -i private | grep -ci no-store; }
 ok "silver member: section gate (any plan) lets them in, marked private/no-store" "$(curl -sk -b "$J" "$U/vr-premium/velvetrope-premium-1" | grep -c PREMIUM-SECRET)/$(nostore vr-premium/velvetrope-premium-1)" "1/1"
 ok "silver member: gold-only URI gate still keeps them out" "$(redirect vr/gate-twig "$J")" "$U/vr/twig"
+FIXTURE_GATES="[['type' => 'uri', 'match' => 'vr/gate-*', 'plans' => 'gold'], ['type' => 'section', 'match' => 'velvetropePremium', 'plans' => '']]"
+MIXED=VR-Premium/Velvetrope-Premium-1
+settings "['gates' => [['type' => 'uri', 'match' => 'vr-premium/*', 'plans' => 'gold']]]"
+ok "URI gates ignore case: a silver member at /$MIXED is kept out (gold-only vr-premium/*)" "$(redirect $MIXED "$J")|$(curl -sk -b "$J" "$U/$MIXED" | grep -c PREMIUM-SECRET)" "$U/vr/twig|0"
+settings "['gates' => [['type' => 'uri', 'match' => 'vr-premium/*', 'plans' => ''], ['type' => 'section', 'match' => 'velvetropePremium', 'plans' => 'gold']]]"
+ok "every matching gate applies: a lenient URI gate (any plan) doesn't bypass the stricter section gate (gold)" "$(redirect vr-premium/velvetrope-premium-1 "$J")|$(curl -sk -b "$J" "$U/vr-premium/velvetrope-premium-1" | grep -c PREMIUM-SECRET)" "$U/vr/twig|0"
+ok "…same through the mixed-case URL" "$(redirect $MIXED "$J")" "$U/vr/twig"
+setadmin active null gold
+ok "a gold member passes both gates (mixed-case URL reaches the entry), sent private/no-store" "$(curl -sk -b "$J" "$U/$MIXED" | grep -c PREMIUM-SECRET)/$(nostore $MIXED)/$(nostore vr-premium/velvetrope-premium-1)" "1/1/1"
+setadmin active null silver
+settings "['gates' => $FIXTURE_GATES]"
 setadmin active null gold
 ok "gold member: URI-gated Twig and Blade pages" "$(curl -sk -b "$J" "$U/vr/gate-twig")|$(curl -sk -b "$J" "$U/vr/gate-blade")" "TWIG-GATED-BY-URI|BLADE-GATED-BY-URI"
 ok "URI-gated pages are marked no-store too; ungated ones aren't" "$(nostore vr/gate-twig)/$(nostore vr/welcome)" "1/0"
@@ -368,18 +385,18 @@ if [ "$(tk "echo $F\\Sites::getSiteByHandle('velvetropefr') ? 'yes' : 'no';")" =
   req multisite-fixtures.php >/dev/null
   FRU=$U/velvetropefr
   ok "fr: template links are on the French site (Twig = Blade)" "$(mark velvetropefr/vr/twig checkout)|$(mark velvetropefr/vr/blade checkout)" "$FRU/actions/velvetrope/checkout/gold|$FRU/actions/velvetrope/checkout/gold"
-  rm -f "$MOCK/calls.log"
+  clearcalls
   ok "fr: checkout from the French site → Stripe" "$(redirect velvetropefr/actions/velvetrope/checkout/silver "$J" | grep -c '^https://checkout.stripe.test/')" "1"
   ok "fr: Stripe returns to the French site, in French" "$(calls | grep 'checkout/sessions' | grep -o "success_url=$FRU/vr/welcome\|cancel_url=$FRU/vr/twig\|locale=fr" | sort -u | tr '\n' ' ')" "cancel_url=$FRU/vr/twig locale=fr success_url=$FRU/vr/welcome "
   settings "['guestCheckout' => true]"
-  rm -f "$MOCK/calls.log"
+  clearcalls
   redirect velvetropefr/actions/velvetrope/checkout/gold >/dev/null
   ok "fr: a guest session records the French site" "$(calls | grep 'checkout/sessions' | grep -c 'metadata\[site\]=velvetropefr')" "1"
   FRMAIL=velvetrope-fr-$(date +%s)@velvetrope.test
-  subobj active '' price_harness_gold cus_guest_fr sub_guest_fr 1500 gold > "$MOCK/fixtures/sub_guest_fr.json"
+  subobj active '' price_harness_gold cus_guest_fr sub_guest_fr 1500 gold | mockfix sub_guest_fr
   sendevent checkout.session.completed "$(gsession cs_guest_fr cus_guest_fr sub_guest_fr "$FRMAIL" paid velvetropefr)" >/dev/null
   ok "fr: the guest's new account is affiliated with the French site" "$(tk "echo $UE::find()->email('$FRMAIL')->status(null)->one()?->getAffiliatedSite()?->handle ?? 'none';")" "velvetropefr"
-  ok "fr: an unknown site in metadata creates the user with no affiliation (never a made-up site)" "$(subobj active '' price_harness_gold cus_guest_x sub_guest_x 1500 gold > "$MOCK/fixtures/sub_guest_x.json"; sendevent checkout.session.completed "$(gsession cs_guest_x cus_guest_x sub_guest_x velvetrope-x-$(date +%s)@velvetrope.test paid nope)" >/dev/null; tk "echo $UE::find()->email('velvetrope-x-*')->status(null)->one()?->affiliatedSiteId ?? 'null';")" "null"
+  ok "fr: an unknown site in metadata creates the user with no affiliation (never a made-up site)" "$(subobj active '' price_harness_gold cus_guest_x sub_guest_x 1500 gold | mockfix sub_guest_x; sendevent checkout.session.completed "$(gsession cs_guest_x cus_guest_x sub_guest_x velvetrope-x-$(date +%s)@velvetrope.test paid nope)" >/dev/null; tk "echo $UE::find()->email('velvetrope-x-*')->status(null)->one()?->affiliatedSiteId ?? 'null';")" "null"
   settings "['guestCheckout' => false]"
   edition pro; mailclear
   sendevent checkout.session.completed "$(gift cs_gift_fr paid velvetropefr)" >/dev/null

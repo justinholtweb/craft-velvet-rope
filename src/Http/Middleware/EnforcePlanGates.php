@@ -17,10 +17,13 @@ use JustinHoltWeb\VelvetRope\VelvetRope;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Pro: plan gates on front-end pages. URI gates are checked before the page is
- * built; section gates once Craft has matched the entry, before anything is
- * sent. A gated page that is let through is marked `private, no-store` so a CDN
- * or proxy never hands it to the next visitor. The first matching gate wins.
+ * Pro: plan gates on front-end pages. Every gate that matches applies, and the
+ * visitor must pass all of them. URI gates (case-insensitive, like Craft's element
+ * routing) are checked against the requested path before the page is built, and
+ * against the matched element's canonical URI afterwards; section gates once Craft
+ * has matched the entry — always before anything is sent. A gated page that is let
+ * through is marked `private, no-store` so a CDN or proxy never hands it to the
+ * next visitor.
  *
  * Gates protect pages. The same content reached another way (an element query in
  * an ungated template, GraphQL) is not covered — see the docs.
@@ -44,34 +47,44 @@ class EnforcePlanGates
             return $next($request);
         }
 
-        $path = Sites::getRequestPath($request);
-        $gated = false;
+        // Every matching gate applies, and the visitor must pass all of them.
+        $applied = [];
 
-        foreach ($gates as $gate) {
+        // URI gates on the requested path, before the page is built.
+        $path = Sites::getRequestPath($request);
+        foreach ($gates as $i => $gate) {
             if ($gate->matchesUri($path)) {
                 if (($denied = $this->deny($gate)) !== null) {
                     return $denied;
                 }
-                $gated = true;
-                break;
+                $applied[$i] = true;
             }
         }
 
         $response = $next($request);
 
-        if (! $gated && ($entry = MatchedElement::get()) instanceof Entry && ($section = $entry->getSection()?->handle) !== null) {
-            foreach ($gates as $gate) {
-                if ($gate->type === Gate::SECTION && $gate->match === $section) {
+        // Then, once Craft has matched an element: URI gates against its canonical URI (the
+        // request may have reached it by another spelling) and section gates for its section.
+        $element = MatchedElement::get();
+        if ($element !== false) {
+            $uri = is_string($element->uri ?? null) ? $element->uri : null;
+            $section = $element instanceof Entry ? $element->getSection()?->handle : null;
+
+            foreach ($gates as $i => $gate) {
+                if (isset($applied[$i])) {
+                    continue;
+                }
+
+                if (($uri !== null && $gate->matchesUri($uri)) || $gate->matchesSection($section)) {
                     if (($denied = $this->deny($gate)) !== null) {
                         return $denied;
                     }
-                    $gated = true;
-                    break;
+                    $applied[$i] = true;
                 }
             }
         }
 
-        if ($gated && $response instanceof Response) {
+        if ($applied !== [] && $response instanceof Response) {
             $response->headers->set('Cache-Control', 'private, no-store');
         }
 

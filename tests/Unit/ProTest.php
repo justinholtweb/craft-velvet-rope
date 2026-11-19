@@ -43,6 +43,12 @@ it('parses plan gates and refuses unreadable rows', function () {
         ->and($uri?->matchesUri('members/news/1'))->toBeTrue()
         ->and($uri?->matchesUri('/members'))->toBeFalse()
         ->and($uri?->matchesUri('membership'))->toBeFalse()
+        // Craft routes element URIs case-insensitively, so gates must too.
+        ->and($uri?->matchesUri('/Members/News/1'))->toBeTrue()
+        ->and(Gate::fromRow(['type' => 'uri', 'match' => 'Members/*'])?->matchesUri('members/x'))->toBeTrue()
+        ->and(Gate::fromRow(['type' => 'section', 'match' => 'news'])?->matchesSection('news'))->toBeTrue()
+        ->and(Gate::fromRow(['type' => 'section', 'match' => 'news'])?->matchesSection(null))->toBeFalse()
+        ->and($uri?->matchesSection('members'))->toBeFalse()
         ->and(Gate::fromRow(['type' => 'section', 'match' => 'news', 'plans' => ''])?->plans)->toBe([])
         ->and(Gate::fromRow(['type' => 'section', 'match' => 'news/*']))->toBeNull()
         ->and(Gate::fromRow(['type' => 'entry', 'match' => 'x']))->toBeNull()

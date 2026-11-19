@@ -25,4 +25,4 @@
 - Pro: dunning emails (payment failed, grace ending, access ended), once per lapse, editable per language in System Messages.
 - Pro: gift memberships — one-time Stripe payments issue a code (stored only as a hash) emailed to the buyer; redeeming grants the plan for N months.
 - Pro: complimentary access granted and revoked from a user's Membership tab.
-- Pro: plan gates on sections and URI patterns; pages let through are sent `Cache-Control: private, no-store`.
+- Pro: plan gates on sections and URI patterns (case-insensitive, checked against both the requested path and the matched entry's URI); every matching gate applies, and pages let through are sent `Cache-Control: private, no-store`.
