@@ -3,7 +3,7 @@
 Paid memberships for Craft users through Laravel Cashier — plans map to user groups, Stripe handles the money.
 
 - Package: `justinholtweb/craft-velvetrope` · handle `velvetrope` · namespace `JustinHoltWeb\VelvetRope`
-- Editions: Lite / Pro · pricing: Lite $49 / Pro $99 (provisional)
+- Editions: Lite / Pro · pricing: **TBD** (was provisionally Lite $49 / Pro $99 — see Questions)
 - Laravel integration: laravel/cashier — Cashier (Stripe) v16, Laravel 13 compatible. Paddle via laravel/cashier-paddle in Pro.
 - Craft 6 only, native Laravel (no `craftcms/yii2-adapter`, ever). Follow
   `~/Sites/plugin-testing-craft6/porting/COOKBOOK.md` for Craft 6 idioms.
@@ -40,7 +40,30 @@ untouched. Cashier's `subscriptions`/`subscription_items` tables are installed b
   `TemplateGlobalsResolving`, which feeds both engines. Deleting a user (soft or hard) queues
   `CancelStripeSubscriptions` — IDs captured on `ElementDeleting`, dispatched on `ElementDeleted` (after
   commit), so a vetoed delete cancels nothing. 23 Pest + 46 harness checks (incl. a local Stripe mock).
-- Open: guest checkout (create the Craft user from Checkout), CP members index (phase 3).
+- **2026-11-18 — phase 3, guest checkout, Pro (phase 4 minus Paddle/metered), GraphQL, multisite done.**
+  - Phase 3: CP **Members** (CpScreenResponse + core Ui table: search, status filter, totals incl. MRR per
+    currency) and a **Membership** screen on user accounts (core `EditUserScreensResolving`, reusing core's
+    `EditUserTrait` for the account nav). Permissions *View members* / *Manage memberships*. MRR comes from the
+    price on the subscription objects Stripe sends (new columns on `velvetrope_subscriptions`); `sync --refresh`
+    backfills from the API.
+  - Guest checkout — **design (question 1):** opt-in; Checkout session with no customer; on
+    `checkout.session.completed`/`async_payment_succeeded` (signed) create a **pending** user for the Stripe email
+    + Craft's activation email, or attach to the existing account with that email; never sign anyone in; an
+    account that's already a different Stripe customer → nothing attached, held for review (CP warning).
+    Idempotent per session (`velvetrope_guest_checkouts`); the subscription is fetched from Stripe because
+    Cashier ignores its webhook when it arrives before the customer is linked.
+  - Pro: concurrent plans (Lite: one at a time → billing portal), promotion codes (box + `?promo=`), dunning
+    emails (system messages, stage column claimed atomically), gift memberships (`velvetrope_gifts`, code hash
+    only; `velvetrope_grants` also holds CP complimentary access), plan gates (section/URI) as `craft.web`
+    middleware inserted before `HandleTemplateRequest`; let-through pages get `private, no-store`.
+  - GraphQL `velvetRopePlans` (public plan fields only). Multisite: return URLs, Stripe locale, guest affiliation,
+    gift email links per site. Rate limiter for checkout/gift links (setting).
+  - Checks: 58 Pest; harness `check.sh` ~175 checks incl. a local Stripe mock and Mailpit (see README).
+- **Deferred:** Paddle driver (laravel/cashier-paddle is a separate Billable/models/webhooks stack — a
+  driver abstraction is a project of its own, not cheap); metered prices (no Craft-side meaning yet).
+- **Unverified without a real Stripe account** (mocked locally): real Checkout/portal sessions, real webhook
+  payload shapes on Justin's account API version (esp. `discounts` vs `discount`, `current_period_end` on items),
+  promotion-code lookup, 3-D Secure/async payments. Test plan: docs/stripe-test-mode.md.
 
 ## Phases
 1. **Plans → groups (Lite).** Plans in the CP (Stripe price IDs, name, user group, trial days). Stripe Checkout
@@ -52,9 +75,28 @@ untouched. Cashier's `subscriptions`/`subscription_items` tables are installed b
    gift memberships, Bouncer integration (gate by plan, not just group).
 
 ## Risks / open questions
-- Cashier's migrations assume `users` + `user_id`; publish and adapt to `velvetrope_members`.
-- Cashier registers its own webhook route — ensure it's excluded from Craft's CSRF and doesn't collide.
-- Guest checkout → account creation flow (who creates the Craft user, when).
+- ~~Cashier's migrations assume `users` + `user_id`~~ — done: own `velvetrope_members` table.
+- ~~Cashier's webhook route vs CSRF~~ — it's outside Craft's groups; guarded by RequireWebhookSecret.
+- ~~Guest checkout account creation~~ — designed and built (see Status); confirm the design (question 1).
+- Gates protect pages, not data (element queries elsewhere, GraphQL). Documented.
+
+## Questions for Justin
+1. **Guest checkout design OK?** Pending account + activation email for a new email; attach to the existing
+   account when the email matches (adds access, never signs in); hold for review when that account is already
+   another Stripe customer. Alternative: never attach to existing accounts (always review). Default is off.
+2. **Prices?** Lite and Pro are TBD (the old provisional $49/$99 is not used anywhere public).
+3. **Repo name:** GitHub is `craft-velvet-rope`, dir/composer `craft-velvetrope`. Rename one so they match
+   (which?), or keep as is? Nothing was renamed.
+4. **Stripe test account:** see the .env list and checklist in docs/stripe-test-mode.md; also tell me the
+   account's API version (Dashboard → Developers) so we can confirm the webhook payload shape for MRR.
+5. **Paddle:** deferred (not cheap). Still wanted for Pro, or drop it from the plan?
+6. **Downgrade policy:** after Pro → Lite, existing gifts/complimentary grants keep running to their end date and
+   paid-for gift codes can still be redeemed; gates, promos and dunning stop. OK?
+7. **Members sidebar** needs Craft's "Access Velvet Rope" plus "View members". Fine, or should "View members"
+   alone show it?
+8. **Dunning vs Stripe's own emails:** Stripe can also send failed-payment emails. Leave both available
+   (documented) or recommend one?
+
 
 ## Definition of done (every phase)
 `bin/port-check craft-velvetrope` green · Pest suite green · Pint + Larastan level 6 clean · installs, uninstalls and
