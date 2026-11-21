@@ -39,3 +39,33 @@ Yes, in Stripe's billing portal (allow it in the portal settings). The webhook m
 ## What happens to someone whose card fails?
 
 They keep access for the grace period (3 days by default), then lose it. Pro emails them along the way.
+
+## Headcount or Velvet Rope?
+
+Both sell memberships through Stripe and keep paying members in Craft user groups. They're built for
+different sites.
+
+**[Headcount](https://craft-headcount.com)** is a membership suite for **Craft 5**. Choose it if you need any of:
+
+- PayPal as well as Stripe
+- fixed-season plans (everyone renews on the same date), with pro-rata joins
+- drip content that unlocks a number of days after someone joins
+- Apple and Google Wallet membership cards
+- MRR, churn and trial-conversion reports, and a REST API
+- gating rules for any element type, set in the control panel
+
+**Velvet Rope** is the leaner **Craft 6** plugin, built on Laravel Cashier. Choose it if:
+
+- you're on Craft 6, where Headcount doesn't run
+- Stripe is your only payment provider
+- you want Blade as well as Twig, or Laravel route middleware (`member:gold`) on your own routes
+- you want guest checkout, gift memberships, promotion codes or dunning emails (the last three are Pro)
+
+Velvet Rope doesn't run on Craft 5, and it has no PayPal, season plans, drip content or wallet cards.
+There's no tool that moves Headcount's members into Velvet Rope.
+
+## Velvet Rope or Subscribr?
+
+[Subscribr](/plugins/craft-subscribr) sells recurring **Commerce** products: subscription boxes,
+skip, pause and swap, prepaid and gift plans, on any gateway that can store a card. It needs Craft
+Commerce. Velvet Rope sells **access**, not products, and doesn't need Commerce.
