@@ -1,6 +1,11 @@
 # Release Notes for Velvet Rope
 
-## 6.0.0-beta.1 - Unreleased
+## 6.0.0-beta.2 - 2026-11-21
+
+### Changed
+- The docs FAQ now compares Velvet Rope with Headcount (Craft 5) and Subscribr.
+
+## 6.0.0-beta.1 - 2026-11-19
 
 > Craft 6 only. Craft 6 is in beta, and so is Velvet Rope: use caution on production.
 
